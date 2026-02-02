@@ -46,13 +46,15 @@ export default function HomePage() {
   const router = useRouter();
   const [events, setEvents] = useState([]);
   const [searchCity, setSearchCity] = useState('');
+  const [searchHotel, setSearchHotel] = useState('');
+  const [selectedHotel, setSelectedHotel] = useState(null);
   const [selectedTheme, setSelectedTheme] = useState(null);
   const [loadingEvents, setLoadingEvents] = useState(true);
   const [activeTab, setActiveTab] = useState('today');
 
   useEffect(() => {
     fetchEvents();
-  }, [activeTab, selectedTheme]);
+  }, [activeTab, selectedTheme, selectedHotel]);
 
   const fetchEvents = async () => {
     setLoadingEvents(true);
