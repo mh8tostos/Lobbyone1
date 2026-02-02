@@ -170,7 +170,7 @@ export default function NewEventPage() {
       // Add organizer as first participant
       await addDoc(collection(db, 'eventParticipants'), {
         eventId: eventRef.id,
-        oderId: user.uid,
+        userId: user.uid,
         userName: userProfile?.displayName || user.displayName,
         userPhoto: userProfile?.photoURL || user.photoURL,
         userCompany: userProfile?.company || '',
