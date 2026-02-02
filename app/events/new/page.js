@@ -49,6 +49,7 @@ export default function NewEventPage() {
   const [hotelName, setHotelName] = useState('');
   const [hotelAddress, setHotelAddress] = useState('');
   const [hotelCity, setHotelCity] = useState('');
+  const [hotelPlaceId, setHotelPlaceId] = useState('');
   const [arrivalDate, setArrivalDate] = useState('');
   const [departureDate, setDepartureDate] = useState('');
   const [eventDate, setEventDate] = useState('');
@@ -56,6 +57,21 @@ export default function NewEventPage() {
   const [thematique, setThematique] = useState('');
   const [maxParticipants, setMaxParticipants] = useState('');
   const [visibility, setVisibility] = useState('public');
+
+  // Handle hotel selection from autocomplete
+  const handleHotelSelect = (hotel) => {
+    if (hotel) {
+      setHotelName(hotel.name);
+      setHotelAddress(hotel.address);
+      setHotelCity(hotel.city);
+      setHotelPlaceId(hotel.placeId);
+    } else {
+      setHotelName('');
+      setHotelAddress('');
+      setHotelCity('');
+      setHotelPlaceId('');
+    }
+  };
 
   useEffect(() => {
     if (!authLoading && !user) {
