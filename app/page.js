@@ -91,8 +91,14 @@ export default function HomePage() {
         eventsData = eventsData.filter((e) => e.thematique === selectedTheme);
       }
 
-      // Filter by city if searching
-      if (searchCity) {
+      // Filter by selected hotel or city
+      if (selectedHotel) {
+        eventsData = eventsData.filter(
+          (e) =>
+            e.hotelCity?.toLowerCase().includes(selectedHotel.city?.toLowerCase() || '') ||
+            e.hotelName?.toLowerCase().includes(selectedHotel.name?.toLowerCase() || '')
+        );
+      } else if (searchCity) {
         eventsData = eventsData.filter(
           (e) =>
             e.hotelCity?.toLowerCase().includes(searchCity.toLowerCase()) ||
