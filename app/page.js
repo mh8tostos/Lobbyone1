@@ -205,14 +205,24 @@ export default function HomePage() {
 
           {/* Search Bar */}
           <div className="flex flex-col sm:flex-row gap-3 max-w-xl mx-auto">
-            <div className="relative flex-1">
-              <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-              <Input
-                placeholder="Ville ou hôtel..."
-                className="pl-10 h-12"
-                value={searchCity}
-                onChange={(e) => setSearchCity(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && fetchEvents()}
+            <div className="flex-1">
+              <HotelAutocomplete
+                value={searchHotel}
+                onChange={(value) => {
+                  setSearchHotel(value);
+                  if (!value) {
+                    setSelectedHotel(null);
+                  }
+                }}
+                onSelect={(hotel) => {
+                  setSelectedHotel(hotel);
+                  if (hotel) {
+                    setSearchHotel(hotel.name);
+                    setSearchCity(hotel.city);
+                  }
+                }}
+                placeholder="Rechercher un hôtel..."
+                inputClassName="h-12"
               />
             </div>
             <Button onClick={fetchEvents} className="h-12 px-6 gap-2">
@@ -220,6 +230,12 @@ export default function HomePage() {
               Rechercher
             </Button>
           </div>
+          {selectedHotel && (
+            <p className="text-sm text-muted-foreground mt-2">
+              <MapPin className="w-4 h-4 inline mr-1" />
+              {selectedHotel.city}{selectedHotel.country ? `, ${selectedHotel.country}` : ''}
+            </p>
+          )}
         </div>
       </section>
 
