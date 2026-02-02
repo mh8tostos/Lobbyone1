@@ -170,6 +170,7 @@ export default function NewEventPage() {
         hotelName: hotelName.trim(),
         hotelAddress: hotelAddress.trim(),
         hotelCity: hotelCity.trim(),
+        hotelPlaceId: hotelPlaceId || null,
         arrivalDate: arrivalDate ? Timestamp.fromDate(new Date(arrivalDate)) : null,
         departureDate: departureDate ? Timestamp.fromDate(new Date(departureDate)) : null,
         eventDate: Timestamp.fromDate(eventDateTime),
