@@ -6,8 +6,13 @@ export const metadata = {
   title: 'HotelNetwork - Rencontres Professionnelles',
   description: 'Connectez-vous avec des professionnels lors de vos séjours hôteliers',
   manifest: '/manifest.json',
+};
+
+export const viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
   themeColor: '#6366f1',
-  viewport: 'width=device-width, initial-scale=1, maximum-scale=1',
 };
 
 export default function RootLayout({ children }) {
