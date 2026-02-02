@@ -302,42 +302,64 @@ export default function NewEventPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="hotelName">
-                  Nom de l'hôtel <span className="text-destructive">*</span>
+                <Label>
+                  Rechercher un hôtel <span className="text-destructive">*</span>
                 </Label>
-                <Input
-                  id="hotelName"
-                  placeholder="Ex: Hôtel Marriott"
+                <HotelAutocomplete
                   value={hotelName}
-                  onChange={(e) => setHotelName(e.target.value)}
+                  onChange={(value) => setHotelName(value)}
+                  onSelect={handleHotelSelect}
+                  placeholder="Rechercher un hôtel..."
                 />
+                <p className="text-xs text-muted-foreground">
+                  Commencez à taper pour voir les suggestions Google Places
+                </p>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="hotelAddress">Adresse</Label>
-                <div className="relative">
-                  <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <Input
-                    id="hotelAddress"
-                    placeholder="123 rue Example"
-                    className="pl-10"
-                    value={hotelAddress}
-                    onChange={(e) => setHotelAddress(e.target.value)}
-                  />
+              {hotelAddress && (
+                <div className="space-y-2">
+                  <Label>Adresse</Label>
+                  <div className="flex items-start gap-2 p-3 bg-slate-50 rounded-lg">
+                    <MapPin className="w-4 h-4 text-muted-foreground mt-0.5" />
+                    <div>
+                      <p className="text-sm">{hotelAddress}</p>
+                      {hotelCity && (
+                        <p className="text-sm text-muted-foreground">{hotelCity}</p>
+                      )}
+                    </div>
+                  </div>
                 </div>
-              </div>
+              )}
 
-              <div className="space-y-2">
-                <Label htmlFor="hotelCity">
-                  Ville <span className="text-destructive">*</span>
-                </Label>
-                <Input
-                  id="hotelCity"
-                  placeholder="Paris"
-                  value={hotelCity}
-                  onChange={(e) => setHotelCity(e.target.value)}
-                />
-              </div>
+              {!hotelAddress && (
+                <>
+                  <div className="space-y-2">
+                    <Label htmlFor="hotelAddressManual">Adresse (optionnel)</Label>
+                    <div className="relative">
+                      <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      <Input
+                        id="hotelAddressManual"
+                        placeholder="123 rue Example"
+                        className="pl-10"
+                        value={hotelAddress}
+                        onChange={(e) => setHotelAddress(e.target.value)}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="hotelCityManual">
+                      Ville <span className="text-destructive">*</span>
+                    </Label>
+                    <Input
+                      id="hotelCityManual"
+                      placeholder="Paris"
+                      value={hotelCity}
+                      onChange={(e) => setHotelCity(e.target.value)}
+                    />
+                  </div>
+                </>
+              )}
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
