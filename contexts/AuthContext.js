@@ -22,6 +22,11 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!auth || !db) {
+      setLoading(false);
+      return () => {};
+    }
+
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
         setUser(user);
@@ -43,16 +48,25 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const login = async (email, password) => {
+    if (!auth) {
+      throw new Error('Firebase is not configured.');
+    }
     return signInWithEmailAndPassword(auth, email, password);
   };
 
   const register = async (email, password, displayName) => {
+    if (!auth) {
+      throw new Error('Firebase is not configured.');
+    }
     const result = await createUserWithEmailAndPassword(auth, email, password);
     await updateProfile(result.user, { displayName });
     return result;
   };
 
   const loginWithGoogle = async () => {
+    if (!auth || !googleProvider || !db) {
+      throw new Error('Firebase is not configured.');
+    }
     const result = await signInWithPopup(auth, googleProvider);
     // Check if user profile exists, if not create basic one
     const userDoc = await getDoc(doc(db, 'users', result.user.uid));
@@ -72,11 +86,14 @@ export const AuthProvider = ({ children }) => {
   const logout = async () => {
     setUser(null);
     setUserProfile(null);
+    if (!auth) {
+      return undefined;
+    }
     return signOut(auth);
   };
 
   const refreshUserProfile = async () => {
-    if (user) {
+    if (user && db) {
       const userDoc = await getDoc(doc(db, 'users', user.uid));
       if (userDoc.exists()) {
         setUserProfile(userDoc.data());
