@@ -1,12 +1,30 @@
 'use client';
 
-const firebaseEnvVars = [
-  'NEXT_PUBLIC_FIREBASE_API_KEY',
-  'NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN',
-  'NEXT_PUBLIC_FIREBASE_PROJECT_ID',
-  'NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET',
-  'NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID',
-  'NEXT_PUBLIC_FIREBASE_APP_ID',
+const envDiagnostics = [
+  {
+    name: 'NEXT_PUBLIC_FIREBASE_API_KEY',
+    present: Boolean(process.env.NEXT_PUBLIC_FIREBASE_API_KEY),
+  },
+  {
+    name: 'NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN',
+    present: Boolean(process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN),
+  },
+  {
+    name: 'NEXT_PUBLIC_FIREBASE_PROJECT_ID',
+    present: Boolean(process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID),
+  },
+  {
+    name: 'NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET',
+    present: Boolean(process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET),
+  },
+  {
+    name: 'NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID',
+    present: Boolean(process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID),
+  },
+  {
+    name: 'NEXT_PUBLIC_FIREBASE_APP_ID',
+    present: Boolean(process.env.NEXT_PUBLIC_FIREBASE_APP_ID),
+  },
 ];
 
 const isDebugEnabled = process.env.NEXT_PUBLIC_FIREBASE_ENV_DEBUG === 'true';
@@ -15,14 +33,6 @@ export default function FirebaseEnvDebugPanel() {
   if (!isDebugEnabled) {
     return null;
   }
-
-  const envDiagnostics = firebaseEnvVars.map((name) => {
-    const value = process.env[name];
-    return {
-      name,
-      present: typeof value === 'string' && value.length > 0,
-    };
-  });
 
   return (
     <aside className="fixed bottom-4 right-4 z-[9999] w-full max-w-md rounded-lg border bg-white/95 p-4 shadow-2xl backdrop-blur">

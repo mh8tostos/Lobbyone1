@@ -10,11 +10,14 @@ import {
   updateProfile,
 } from 'firebase/auth';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
-import { auth, db, googleProvider } from '@/lib/firebase';
+import { firebaseAuth, db, googleProvider } from '@/lib/firebase';
 
 const AuthContext = createContext({});
 
 export const useAuth = () => useContext(AuthContext);
+
+const createFirebaseUnavailableError = () =>
+  new Error('Firebase client SDK is unavailable. Check NEXT_PUBLIC_FIREBASE_* environment variables.');
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
@@ -22,11 +25,15 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        setUser(user);
-        // Fetch user profile from Firestore
-        const userDoc = await getDoc(doc(db, 'users', user.uid));
+    if (!firebaseAuth) {
+      setLoading(false);
+      return undefined;
+    }
+
+    const unsubscribe = onAuthStateChanged(firebaseAuth, async (currentUser) => {
+      if (currentUser && db) {
+        setUser(currentUser);
+        const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
         if (userDoc.exists()) {
           setUserProfile(userDoc.data());
         } else {
@@ -43,18 +50,22 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const login = async (email, password) => {
-    return signInWithEmailAndPassword(auth, email, password);
+    if (!firebaseAuth) throw createFirebaseUnavailableError();
+    return signInWithEmailAndPassword(firebaseAuth, email, password);
   };
 
   const register = async (email, password, displayName) => {
-    const result = await createUserWithEmailAndPassword(auth, email, password);
+    if (!firebaseAuth) throw createFirebaseUnavailableError();
+
+    const result = await createUserWithEmailAndPassword(firebaseAuth, email, password);
     await updateProfile(result.user, { displayName });
     return result;
   };
 
   const loginWithGoogle = async () => {
-    const result = await signInWithPopup(auth, googleProvider);
-    // Check if user profile exists, if not create basic one
+    if (!firebaseAuth || !db) throw createFirebaseUnavailableError();
+
+    const result = await signInWithPopup(firebaseAuth, googleProvider);
     const userDoc = await getDoc(doc(db, 'users', result.user.uid));
     if (!userDoc.exists()) {
       await setDoc(doc(db, 'users', result.user.uid), {
@@ -72,11 +83,16 @@ export const AuthProvider = ({ children }) => {
   const logout = async () => {
     setUser(null);
     setUserProfile(null);
-    return signOut(auth);
+
+    if (!firebaseAuth) {
+      return;
+    }
+
+    return signOut(firebaseAuth);
   };
 
   const refreshUserProfile = async () => {
-    if (user) {
+    if (user && db) {
       const userDoc = await getDoc(doc(db, 'users', user.uid));
       if (userDoc.exists()) {
         setUserProfile(userDoc.data());

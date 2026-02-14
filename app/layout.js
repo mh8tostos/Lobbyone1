@@ -2,6 +2,7 @@ import './globals.css';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { Toaster } from 'sonner';
 import FirebaseEnvDebugPanel from '@/components/FirebaseEnvDebugPanel';
+import FirebaseConfigGuard from '@/components/FirebaseConfigGuard';
 
 export const metadata = {
   title: 'HotelNetwork - Rencontres Professionnelles',
@@ -20,11 +21,13 @@ export default function RootLayout({ children }) {
   return (
     <html lang="fr">
       <body className="min-h-screen bg-background antialiased">
-        <AuthProvider>
-          {children}
-          <FirebaseEnvDebugPanel />
-          <Toaster position="top-center" richColors />
-        </AuthProvider>
+        <FirebaseConfigGuard>
+          <AuthProvider>
+            {children}
+            <FirebaseEnvDebugPanel />
+            <Toaster position="top-center" richColors />
+          </AuthProvider>
+        </FirebaseConfigGuard>
       </body>
     </html>
   );
