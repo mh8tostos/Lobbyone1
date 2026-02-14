@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
-import { collection, addDoc, serverTimestamp, Timestamp, query, where, getDocs } from 'firebase/firestore';
+import { collection, addDoc, doc, setDoc, serverTimestamp, Timestamp, query, where, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -186,7 +186,8 @@ export default function NewEventPage() {
       });
 
       // Add organizer as first participant
-      await addDoc(collection(db, 'eventParticipants'), {
+      const participantDocId = `${eventRef.id}_${user.uid}`;
+      await setDoc(doc(db, 'eventParticipants', participantDocId), {
         eventId: eventRef.id,
         userId: user.uid,
         userName: userProfile?.displayName || user.displayName,

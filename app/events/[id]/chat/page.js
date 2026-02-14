@@ -15,7 +15,6 @@ import {
   addDoc,
   updateDoc,
   serverTimestamp,
-  Timestamp,
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import Link from 'next/link';
@@ -45,75 +44,106 @@ export default function EventChatPage() {
   }, [authLoading, user, router]);
 
   useEffect(() => {
-    if (id && user) {
-      fetchEventAndChat();
-    }
-  }, [id, user]);
+    if (!id || authLoading || !user) return undefined;
+
+    let unsubscribeChat = () => {};
+    let unsubscribeMessages = () => {};
+
+    const setupChatListeners = async () => {
+      try {
+        // Fetch event
+        const eventDoc = await getDoc(doc(db, 'events', id));
+        if (!eventDoc.exists()) {
+          toast.error('Événement non trouvé');
+          router.push('/');
+          setLoading(false);
+          return;
+        }
+        setEvent({ id: eventDoc.id, ...eventDoc.data() });
+
+        // Ensure current user is a participant before opening chat listeners
+        const participantDocId = `${id}_${user.uid}`;
+        const participantDoc = await getDoc(doc(db, 'eventParticipants', participantDocId));
+        if (!participantDoc.exists()) {
+          toast.error("Vous devez rejoindre l'événement pour accéder au chat");
+          router.push(`/events/${id}`);
+          setLoading(false);
+          return;
+        }
+
+        // Find event chat using eventId linkage
+        const chatQuery = query(
+          collection(db, 'chats'),
+          where('eventId', '==', id),
+          where('type', '==', 'event')
+        );
+
+        unsubscribeChat = onSnapshot(chatQuery, (snapshot) => {
+          if (!snapshot.empty) {
+            const chatData = { id: snapshot.docs[0].id, ...snapshot.docs[0].data() };
+            setChat(chatData);
+
+            unsubscribeMessages();
+
+            // Subscribe to messages
+            const messagesQuery = query(
+              collection(db, 'messages'),
+              where('chatId', '==', chatData.id),
+              orderBy('createdAt', 'asc'),
+              limit(100)
+            );
+
+            unsubscribeMessages = onSnapshot(
+              messagesQuery,
+              (msgSnapshot) => {
+                const messagesData = msgSnapshot.docs.map((doc) => ({
+                  id: doc.id,
+                  ...doc.data(),
+                }));
+                setMessages(messagesData);
+                setLoading(false);
+              },
+              (error) => {
+                console.error('Error subscribing to messages:', error);
+                if (error?.code === 'permission-denied') {
+                  toast.error("Vous devez rejoindre l'événement pour accéder au chat.");
+                } else {
+                  toast.error('Erreur lors du chargement des messages');
+                }
+                setLoading(false);
+              }
+            );
+          } else {
+            setLoading(false);
+          }
+        }, (error) => {
+          console.error('Error subscribing to event chat:', error);
+          if (error?.code === 'permission-denied') {
+            toast.error("Vous devez rejoindre l'événement pour accéder au chat.");
+            router.push(`/events/${id}`);
+          } else {
+            toast.error('Erreur lors du chargement du chat');
+          }
+          setLoading(false);
+        });
+      } catch (error) {
+        console.error('Error fetching chat:', error);
+        toast.error('Erreur lors du chargement');
+        setLoading(false);
+      }
+    };
+
+    setupChatListeners();
+
+    return () => {
+      unsubscribeMessages();
+      unsubscribeChat();
+    };
+  }, [id, user, authLoading, router]);
 
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
-
-  const fetchEventAndChat = async () => {
-    try {
-      // Fetch event
-      const eventDoc = await getDoc(doc(db, 'events', id));
-      if (!eventDoc.exists()) {
-        toast.error('Événement non trouvé');
-        router.push('/');
-        return;
-      }
-      setEvent({ id: eventDoc.id, ...eventDoc.data() });
-
-      // Find event chat
-      const chatQuery = query(
-        collection(db, 'chats'),
-        where('eventId', '==', id),
-        where('type', '==', 'event')
-      );
-
-      const unsubscribeChat = onSnapshot(chatQuery, (snapshot) => {
-        if (!snapshot.empty) {
-          const chatData = { id: snapshot.docs[0].id, ...snapshot.docs[0].data() };
-          setChat(chatData);
-
-          // Check if user is member
-          if (!chatData.members?.includes(user.uid)) {
-            toast.error('Vous devez rejoindre l\'événement pour accéder au chat');
-            router.push(`/events/${id}`);
-            return;
-          }
-
-          // Subscribe to messages
-          const messagesQuery = query(
-            collection(db, 'messages'),
-            where('chatId', '==', chatData.id),
-            orderBy('createdAt', 'asc'),
-            limit(100)
-          );
-
-          const unsubscribeMessages = onSnapshot(messagesQuery, (msgSnapshot) => {
-            const messagesData = msgSnapshot.docs.map((doc) => ({
-              id: doc.id,
-              ...doc.data(),
-            }));
-            setMessages(messagesData);
-            setLoading(false);
-          });
-
-          return () => unsubscribeMessages();
-        } else {
-          setLoading(false);
-        }
-      });
-
-      return () => unsubscribeChat();
-    } catch (error) {
-      console.error('Error fetching chat:', error);
-      toast.error('Erreur lors du chargement');
-      setLoading(false);
-    }
-  };
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
