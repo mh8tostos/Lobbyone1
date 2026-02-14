@@ -16,7 +16,7 @@ import {
   updateDoc,
   serverTimestamp,
 } from 'firebase/firestore';
-import { db } from '@/lib/firebase/config';
+import { db } from '@/lib/firebase';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';

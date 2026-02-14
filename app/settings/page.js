@@ -6,7 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { updateProfile, updatePassword, EmailAuthProvider, reauthenticateWithCredential } from 'firebase/auth';
-import { db, storage, auth } from '@/lib/firebase/config';
+import { db, storage, auth } from '@/lib/firebase';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';

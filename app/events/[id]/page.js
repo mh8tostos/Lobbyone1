@@ -17,7 +17,7 @@ import {
   serverTimestamp,
   arrayUnion,
 } from 'firebase/firestore';
-import { db } from '@/lib/firebase/config';
+import { db } from '@/lib/firebase';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
