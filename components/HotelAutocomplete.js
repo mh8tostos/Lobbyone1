@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+import Script from 'next/script';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import { MapPin, Hotel, Loader2, X } from 'lucide-react';
@@ -32,11 +33,14 @@ export default function HotelAutocomplete({
   inputClassName,
   disabled = false,
 }) {
+  const mapsApiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+  const hasMapsKey = Boolean(mapsApiKey);
   const [inputValue, setInputValue] = useState(value);
   const [suggestions, setSuggestions] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
+  const [isMapsScriptLoaded, setIsMapsScriptLoaded] = useState(false);
   const inputRef = useRef(null);
   const containerRef = useRef(null);
   const autocompleteService = useRef(null);
@@ -45,30 +49,26 @@ export default function HotelAutocomplete({
 
   const debouncedInput = useDebounce(inputValue, 300);
 
-  // Initialize Google Places services
-  useEffect(() => {
-    const initGooglePlaces = () => {
-      if (window.google && window.google.maps && window.google.maps.places) {
-        autocompleteService.current = new window.google.maps.places.AutocompleteService();
-        // Create a dummy div for PlacesService (required)
-        const dummyDiv = document.createElement('div');
-        placesService.current = new window.google.maps.places.PlacesService(dummyDiv);
-        sessionToken.current = new window.google.maps.places.AutocompleteSessionToken();
-      }
-    };
-
-    if (window.google) {
-      initGooglePlaces();
-    } else {
-      // Load Google Maps script
-      const script = document.createElement('script');
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&libraries=places&language=fr`;
-      script.async = true;
-      script.defer = true;
-      script.onload = initGooglePlaces;
-      document.head.appendChild(script);
+  const initGooglePlaces = useCallback(() => {
+    if (window.google && window.google.maps && window.google.maps.places) {
+      autocompleteService.current = new window.google.maps.places.AutocompleteService();
+      // Create a dummy div for PlacesService (required)
+      const dummyDiv = document.createElement('div');
+      placesService.current = new window.google.maps.places.PlacesService(dummyDiv);
+      sessionToken.current = new window.google.maps.places.AutocompleteSessionToken();
     }
   }, []);
+
+  // Initialize Google Places services
+  useEffect(() => {
+    if (!hasMapsKey) {
+      return;
+    }
+
+    if (isMapsScriptLoaded || window.google) {
+      initGooglePlaces();
+    }
+  }, [hasMapsKey, initGooglePlaces, isMapsScriptLoaded]);
 
   // Fetch suggestions when input changes
   useEffect(() => {
@@ -120,6 +120,11 @@ export default function HotelAutocomplete({
     setSelectedIndex(-1);
     if (onChange) {
       onChange(newValue);
+    }
+
+    if (!hasMapsKey) {
+      setShowSuggestions(false);
+      setSuggestions([]);
     }
   };
 
@@ -219,6 +224,15 @@ export default function HotelAutocomplete({
 
   return (
     <div ref={containerRef} className={cn('relative', className)}>
+      {hasMapsKey && (
+        <Script
+          id="google-maps-places-api"
+          src={`https://maps.googleapis.com/maps/api/js?key=${mapsApiKey}&libraries=places&language=fr&loading=async`}
+          strategy="afterInteractive"
+          onLoad={() => setIsMapsScriptLoaded(true)}
+        />
+      )}
+
       <div className="relative">
         <Hotel className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
         <Input
@@ -246,8 +260,14 @@ export default function HotelAutocomplete({
         )}
       </div>
 
+      {!hasMapsKey && (
+        <p className="mt-1 text-xs text-muted-foreground">
+          Adresse: saisie manuelle (Maps key manquante)
+        </p>
+      )}
+
       {/* Suggestions dropdown */}
-      {showSuggestions && suggestions.length > 0 && (
+      {hasMapsKey && showSuggestions && suggestions.length > 0 && (
         <Card className="absolute z-50 w-full mt-1 py-1 shadow-lg max-h-60 overflow-y-auto">
           {suggestions.map((suggestion, index) => (
             <button
