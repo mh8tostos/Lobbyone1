@@ -6,6 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import {
   doc,
   getDoc,
+  getDocs,
   collection,
   query,
   where,
@@ -16,7 +17,7 @@ import {
   updateDoc,
   serverTimestamp,
 } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { auth, db } from '@/lib/firebase';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -34,8 +35,15 @@ export default function EventChatPage() {
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [chatUnavailableMessage, setChatUnavailableMessage] = useState('');
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
+
+  const logFirestoreError = (message, error) => {
+    if (process.env.NODE_ENV !== 'production') {
+      console.error(message, error);
+    }
+  };
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -44,7 +52,7 @@ export default function EventChatPage() {
   }, [authLoading, user, router]);
 
   useEffect(() => {
-    if (!id || authLoading || !user) return undefined;
+    if (!id || authLoading || !user || !auth?.currentUser?.uid) return undefined;
 
     let unsubscribeChat = () => {};
     let unsubscribeMessages = () => {};
@@ -60,6 +68,7 @@ export default function EventChatPage() {
           return;
         }
         setEvent({ id: eventDoc.id, ...eventDoc.data() });
+        setChatUnavailableMessage('');
 
         // Ensure current user is a participant before opening chat listeners
         const participantDocId = `${id}_${user.uid}`;
@@ -71,16 +80,29 @@ export default function EventChatPage() {
           return;
         }
 
-        // Find event chat using eventId linkage
+        // Resolve event chat id using eventId linkage
         const chatQuery = query(
           collection(db, 'chats'),
           where('eventId', '==', id),
-          where('type', '==', 'event')
+          limit(1)
         );
 
-        unsubscribeChat = onSnapshot(chatQuery, (snapshot) => {
-          if (!snapshot.empty) {
-            const chatData = { id: snapshot.docs[0].id, ...snapshot.docs[0].data() };
+        const chatResult = await getDocs(chatQuery);
+        if (chatResult.empty) {
+          setChat(null);
+          setMessages([]);
+          setChatUnavailableMessage('Aucun chat disponible pour cet événement pour le moment.');
+          setLoading(false);
+          return;
+        }
+
+        const chatId = chatResult.docs[0].id;
+
+        unsubscribeChat = onSnapshot(
+          doc(db, 'chats', chatId),
+          (chatSnapshot) => {
+            if (chatSnapshot.exists()) {
+              const chatData = { id: chatSnapshot.id, ...chatSnapshot.data() };
             setChat(chatData);
 
             unsubscribeMessages();
@@ -93,41 +115,51 @@ export default function EventChatPage() {
               limit(100)
             );
 
-            unsubscribeMessages = onSnapshot(
-              messagesQuery,
-              (msgSnapshot) => {
-                const messagesData = msgSnapshot.docs.map((doc) => ({
-                  id: doc.id,
-                  ...doc.data(),
-                }));
-                setMessages(messagesData);
-                setLoading(false);
-              },
-              (error) => {
-                console.error('Error subscribing to messages:', error);
-                if (error?.code === 'permission-denied') {
-                  toast.error("Vous devez rejoindre l'événement pour accéder au chat.");
-                } else {
-                  toast.error('Erreur lors du chargement des messages');
+              unsubscribeMessages = onSnapshot(
+                messagesQuery,
+                (msgSnapshot) => {
+                  const messagesData = msgSnapshot.docs.map((doc) => ({
+                    id: doc.id,
+                    ...doc.data(),
+                  }));
+                  setMessages(messagesData);
+                  setLoading(false);
+                },
+                (error) => {
+                  if (error?.code === 'permission-denied') {
+                    setChatUnavailableMessage('Accès refusé au chat');
+                    setMessages([]);
+                    setChat(null);
+                    toast.error('Accès refusé au chat');
+                  } else {
+                    logFirestoreError('Error subscribing to messages:', error);
+                    toast.error('Erreur lors du chargement des messages');
+                  }
+                  setLoading(false);
                 }
-                setLoading(false);
-              }
-            );
-          } else {
+              );
+            } else {
+              setChat(null);
+              setMessages([]);
+              setChatUnavailableMessage('Aucun chat disponible pour cet événement pour le moment.');
+              setLoading(false);
+            }
+          },
+          (error) => {
+            if (error?.code === 'permission-denied') {
+              setChatUnavailableMessage('Accès refusé au chat');
+              setChat(null);
+              setMessages([]);
+              toast.error('Accès refusé au chat');
+            } else {
+              logFirestoreError('Error subscribing to event chat:', error);
+              toast.error('Erreur lors du chargement du chat');
+            }
             setLoading(false);
           }
-        }, (error) => {
-          console.error('Error subscribing to event chat:', error);
-          if (error?.code === 'permission-denied') {
-            toast.error("Vous devez rejoindre l'événement pour accéder au chat.");
-            router.push(`/events/${id}`);
-          } else {
-            toast.error('Erreur lors du chargement du chat');
-          }
-          setLoading(false);
-        });
+        );
       } catch (error) {
-        console.error('Error fetching chat:', error);
+        logFirestoreError('Error fetching chat:', error);
         toast.error('Erreur lors du chargement');
         setLoading(false);
       }
@@ -254,7 +286,13 @@ export default function EventChatPage() {
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto px-4 py-4">
-        {messages.length === 0 ? (
+        {chatUnavailableMessage ? (
+          <div className="h-full flex items-center justify-center">
+            <div className="text-center text-muted-foreground">
+              <p>{chatUnavailableMessage}</p>
+            </div>
+          </div>
+        ) : messages.length === 0 ? (
           <div className="h-full flex items-center justify-center">
             <div className="text-center text-muted-foreground">
               <p>Aucun message encore</p>
@@ -327,8 +365,13 @@ export default function EventChatPage() {
             onChange={(e) => setNewMessage(e.target.value)}
             className="flex-1"
             maxLength={1000}
+            disabled={!chat || !!chatUnavailableMessage}
           />
-          <Button type="submit" size="icon" disabled={!newMessage.trim() || sending}>
+          <Button
+            type="submit"
+            size="icon"
+            disabled={!newMessage.trim() || sending || !chat || !!chatUnavailableMessage}
+          >
             {sending ? (
               <Loader2 className="w-4 h-4 animate-spin" />
             ) : (
