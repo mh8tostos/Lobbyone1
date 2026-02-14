@@ -12,7 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { Hotel, Mail, Lock, User, Loader2, ArrowLeft } from 'lucide-react';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
-import { db } from '@/lib/firebase/config';
+import { db } from '@/lib/firebase';
 
 export default function AuthPage() {
   const router = useRouter();

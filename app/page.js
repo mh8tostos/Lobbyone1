@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { collection, query, where, orderBy, limit, getDocs, Timestamp } from 'firebase/firestore';
-import { db } from '@/lib/firebase/config';
+import { db } from '@/lib/firebase';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -50,6 +50,7 @@ export default function HomePage() {
   const [selectedHotel, setSelectedHotel] = useState(null);
   const [selectedTheme, setSelectedTheme] = useState(null);
   const [loadingEvents, setLoadingEvents] = useState(true);
+  const [eventsError, setEventsError] = useState('');
   const [activeTab, setActiveTab] = useState('today');
 
   useEffect(() => {
@@ -58,6 +59,7 @@ export default function HomePage() {
 
   const fetchEvents = async () => {
     setLoadingEvents(true);
+    setEventsError('');
     try {
       const now = new Date();
       let startDate = now;
@@ -108,7 +110,8 @@ export default function HomePage() {
 
       setEvents(eventsData);
     } catch (error) {
-      console.error('Error fetching events:', error);
+      setEvents([]);
+      setEventsError("Impossible de charger les événements pour le moment. Réessayez dans quelques instants.");
     }
     setLoadingEvents(false);
   };
@@ -316,6 +319,15 @@ export default function HomePage() {
               <div className="flex justify-center py-12">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
               </div>
+            ) : eventsError ? (
+              <Card className="max-w-md mx-auto border-destructive/40">
+                <CardContent className="p-8 text-center">
+                  <Calendar className="w-12 h-12 mx-auto mb-4 text-destructive" />
+                  <h3 className="font-semibold mb-2">Chargement indisponible</h3>
+                  <p className="text-sm text-muted-foreground mb-4">{eventsError}</p>
+                  <Button variant="outline" onClick={fetchEvents}>Réessayer</Button>
+                </CardContent>
+              </Card>
             ) : events.length === 0 ? (
               <Card className="max-w-md mx-auto">
                 <CardContent className="p-8 text-center">
@@ -409,6 +421,9 @@ export default function HomePage() {
               © 2025 HotelNetwork. Tous droits réservés.
             </p>
             <div className="flex gap-4">
+              <Link href="/legal" className="text-sm text-muted-foreground hover:text-foreground">
+                Mentions légales
+              </Link>
               <Link href="/settings" className="text-sm text-muted-foreground hover:text-foreground">
                 Paramètres
               </Link>
