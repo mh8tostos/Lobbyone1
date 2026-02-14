@@ -3,6 +3,9 @@ import { getAuth, GoogleAuthProvider } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 import type { Analytics } from 'firebase/analytics';
+import type { Auth } from 'firebase/auth';
+import type { Firestore } from 'firebase/firestore';
+import type { FirebaseStorage } from 'firebase/storage';
 
 const requiredFirebaseEnvVars = [
   'NEXT_PUBLIC_FIREBASE_API_KEY',
@@ -14,12 +17,7 @@ const requiredFirebaseEnvVars = [
 ] as const;
 
 const missingFirebaseEnvVars = requiredFirebaseEnvVars.filter((envKey) => !process.env[envKey]);
-
-if (missingFirebaseEnvVars.length > 0) {
-  throw new Error(
-    `Missing Firebase environment variables: ${missingFirebaseEnvVars.join(', ')}. Configure them in your environment (local .env / Vercel Environment Variables).`
-  );
-}
+const hasCompleteFirebaseConfig = missingFirebaseEnvVars.length === 0;
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -30,11 +28,27 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
-const app: FirebaseApp = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
+if (!hasCompleteFirebaseConfig) {
+  const diagnosticMessage =
+    `[firebase] Missing Firebase environment variables: ${missingFirebaseEnvVars.join(', ')}. ` +
+    'Firebase client SDK initialization was skipped. Set these values in local .env and Vercel (Preview + Production), then redeploy.';
 
-const auth = getAuth(app);
-const db = getFirestore(app);
-const storage = getStorage(app);
+  if (typeof window === 'undefined') {
+    console.warn(diagnosticMessage);
+  } else {
+    console.error(diagnosticMessage);
+  }
+}
+
+const app: FirebaseApp | null = hasCompleteFirebaseConfig
+  ? getApps().length > 0
+    ? getApp()
+    : initializeApp(firebaseConfig)
+  : null;
+
+const auth: Auth | null = app ? getAuth(app) : null;
+const db: Firestore | null = app ? getFirestore(app) : null;
+const storage: FirebaseStorage | null = app ? getStorage(app) : null;
 
 const googleProvider = new GoogleAuthProvider();
 googleProvider.setCustomParameters({ prompt: 'select_account' });
@@ -48,6 +62,10 @@ export const initAnalytics = async () => {
 
   if (analyticsInstance) {
     return analyticsInstance;
+  }
+
+  if (!app) {
+    return null;
   }
 
   const measurementId = process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID;
@@ -67,3 +85,4 @@ export const initAnalytics = async () => {
 };
 
 export { app, auth, db, storage, googleProvider };
+export { hasCompleteFirebaseConfig, missingFirebaseEnvVars, requiredFirebaseEnvVars };
