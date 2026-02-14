@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect, use } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react';
+import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import {
   doc,
@@ -54,8 +54,10 @@ const THEMATIQUES = {
   'talk-business': { label: 'Talk Business', icon: MessageSquare, color: 'bg-purple-100 text-purple-700' },
 };
 
-export default function EventDetailPage({ params }) {
-  const { id } = use(params);
+export default function EventDetailPage() {
+  const { id } = useParams();
+  // `params` in client routes are plain objects, so React.use(params) can crash in prod (#438).
+  // Use Next's routing hook instead of React `use()` to avoid passing unsupported object types.
   const router = useRouter();
   const { user, userProfile, loading: authLoading } = useAuth();
   const [event, setEvent] = useState(null);

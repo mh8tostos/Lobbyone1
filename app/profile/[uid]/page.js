@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect, use } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react';
+import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import {
   doc,
@@ -34,8 +34,8 @@ import {
   Loader2,
 } from 'lucide-react';
 
-export default function ProfilePage({ params }) {
-  const { uid } = use(params);
+export default function ProfilePage() {
+  const { uid } = useParams();
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
   const [profile, setProfile] = useState(null);
