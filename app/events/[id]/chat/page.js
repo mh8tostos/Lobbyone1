@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect, useRef, use } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, useRef } from 'react';
+import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import {
   doc,
@@ -25,8 +25,8 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { toast } from 'sonner';
 import { ArrowLeft, Send, Loader2, Users, Info } from 'lucide-react';
 
-export default function EventChatPage({ params }) {
-  const { id } = use(params);
+export default function EventChatPage() {
+  const { id } = useParams();
   const router = useRouter();
   const { user, userProfile, loading: authLoading } = useAuth();
   const [event, setEvent] = useState(null);

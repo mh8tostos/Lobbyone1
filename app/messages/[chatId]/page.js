@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect, useRef, use } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, useRef } from 'react';
+import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import {
   doc,
@@ -24,8 +24,8 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { toast } from 'sonner';
 import { ArrowLeft, Send, Loader2 } from 'lucide-react';
 
-export default function PrivateChatPage({ params }) {
-  const { chatId } = use(params);
+export default function PrivateChatPage() {
+  const { chatId } = useParams();
   const router = useRouter();
   const { user, userProfile, loading: authLoading } = useAuth();
   const [chat, setChat] = useState(null);
