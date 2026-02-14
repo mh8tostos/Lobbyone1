@@ -11,6 +11,7 @@ import {
   where,
   getDocs,
   addDoc,
+  setDoc,
   updateDoc,
   deleteDoc,
   increment,
@@ -123,8 +124,20 @@ export default function EventDetailPage() {
 
     setJoining(true);
     try {
+      const participantDocId = `${id}_${user.uid}`;
+      const participantRef = doc(db, 'eventParticipants', participantDocId);
+      const participantDoc = await getDoc(participantRef);
+
+      if (participantDoc.exists()) {
+        setIsParticipant(true);
+        setMyParticipation({ id: participantDoc.id, ...participantDoc.data() });
+        toast.info('Vous participez déjà à cet événement');
+        setJoining(false);
+        return;
+      }
+
       // Add as participant
-      await addDoc(collection(db, 'eventParticipants'), {
+      await setDoc(participantRef, {
         eventId: id,
         userId: user.uid,
         userName: userProfile?.displayName || user.displayName,
@@ -147,10 +160,30 @@ export default function EventDetailPage() {
         where('type', '==', 'event')
       );
       const chatSnapshot = await getDocs(chatQuery);
-      if (!chatSnapshot.empty) {
-        await updateDoc(doc(db, 'chats', chatSnapshot.docs[0].id), {
-          members: arrayUnion(user.uid),
-        });
+
+      try {
+        if (!chatSnapshot.empty) {
+          await updateDoc(doc(db, 'chats', chatSnapshot.docs[0].id), {
+            members: arrayUnion(user.uid),
+          });
+        } else {
+          await addDoc(collection(db, 'chats'), {
+            type: 'event',
+            eventId: id,
+            title: event?.title || 'Chat événement',
+            members: Array.from(new Set([event?.organizerId, user.uid].filter(Boolean))),
+            lastMessage: null,
+            lastMessageAt: null,
+            createdAt: serverTimestamp(),
+          });
+        }
+      } catch (chatError) {
+        console.error('Error updating event chat membership:', chatError);
+        if (chatError?.code === 'permission-denied') {
+          toast.error("Inscription réussie, mais l'accès au chat n'a pas pu être activé immédiatement.");
+        } else {
+          toast.error('Inscription réussie, mais une erreur est survenue lors de la mise à jour du chat.');
+        }
       }
 
       toast.success('Vous avez rejoint l\'événement !');
@@ -173,8 +206,10 @@ export default function EventDetailPage() {
 
     setJoining(true);
     try {
+      const participantDocId = `${id}_${user.uid}`;
+
       // Remove participant
-      await deleteDoc(doc(db, 'eventParticipants', myParticipation.id));
+      await deleteDoc(doc(db, 'eventParticipants', participantDocId));
 
       // Update participants count
       await updateDoc(doc(db, 'events', id), {
