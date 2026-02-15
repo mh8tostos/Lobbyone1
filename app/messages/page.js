@@ -17,6 +17,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ArrowLeft, MessageSquare, Users, User, Hotel } from 'lucide-react';
+import { toast } from 'sonner';
 
 export default function MessagesPage() {
   const router = useRouter();
@@ -25,6 +26,7 @@ export default function MessagesPage() {
   const [privateChats, setPrivateChats] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('events');
+  const [indexMessage, setIndexMessage] = useState('');
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -34,38 +36,70 @@ export default function MessagesPage() {
 
   useEffect(() => {
     if (user) {
-      // Subscribe to event chats
-      const eventChatsQuery = query(
-        collection(db, 'chats'),
-        where('type', '==', 'event'),
-        where('members', 'array-contains', user.uid),
-        orderBy('lastMessageAt', 'desc')
-      );
-
-      const unsubscribeEvents = onSnapshot(eventChatsQuery, (snapshot) => {
-        const chats = snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
-        setEventChats(chats);
+      const sortChatsByLastMessage = (chats) => chats.sort((a, b) => {
+        const aTime = a.lastMessageAt?.toMillis ? a.lastMessageAt.toMillis() : 0;
+        const bTime = b.lastMessageAt?.toMillis ? b.lastMessageAt.toMillis() : 0;
+        return bTime - aTime;
       });
 
-      // Subscribe to private chats
-      const privateChatsQuery = query(
-        collection(db, 'chats'),
-        where('type', '==', 'private'),
-        where('members', 'array-contains', user.uid),
-        orderBy('lastMessageAt', 'desc')
-      );
+      const subscribeToChats = ({ type, setChats }) => {
+        const indexedQuery = query(
+          collection(db, 'chats'),
+          where('type', '==', type),
+          where('members', 'array-contains', user.uid),
+          orderBy('lastMessageAt', 'desc')
+        );
 
-      const unsubscribePrivate = onSnapshot(privateChatsQuery, (snapshot) => {
-        const chats = snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
-        setPrivateChats(chats);
-        setLoading(false);
-      });
+        const fallbackQuery = query(
+          collection(db, 'chats'),
+          where('type', '==', type),
+          where('members', 'array-contains', user.uid)
+        );
+
+        let fallbackUnsubscribe = null;
+
+        const indexedUnsubscribe = onSnapshot(
+          indexedQuery,
+          (snapshot) => {
+            const chats = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+            setChats(sortChatsByLastMessage(chats));
+            setLoading(false);
+          },
+          (error) => {
+            if (error?.code === 'failed-precondition') {
+              const message = 'Index Firestore en cours de création. Réessayez dans quelques minutes.';
+              setIndexMessage(message);
+              toast.warning(message);
+              fallbackUnsubscribe = onSnapshot(
+                fallbackQuery,
+                (snapshot) => {
+                  const chats = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+                  setChats(sortChatsByLastMessage(chats));
+                  setLoading(false);
+                },
+                (fallbackError) => {
+                  console.error(`Error loading fallback ${type} chats:`, fallbackError);
+                  setLoading(false);
+                }
+              );
+              return;
+            }
+
+            console.error(`Error loading ${type} chats:`, error);
+            setLoading(false);
+          }
+        );
+
+        return () => {
+          indexedUnsubscribe();
+          if (fallbackUnsubscribe) {
+            fallbackUnsubscribe();
+          }
+        };
+      };
+
+      const unsubscribeEvents = subscribeToChats({ type: 'event', setChats: setEventChats });
+      const unsubscribePrivate = subscribeToChats({ type: 'private', setChats: setPrivateChats });
 
       return () => {
         unsubscribeEvents();
@@ -124,6 +158,11 @@ export default function MessagesPage() {
       </header>
 
       <main className="container mx-auto px-4 py-6 max-w-2xl">
+        {indexMessage && (
+          <Card className="mb-4 border-amber-300 bg-amber-50">
+            <CardContent className="p-3 text-sm text-amber-800">{indexMessage}</CardContent>
+          </Card>
+        )}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="grid w-full grid-cols-2 mb-6">
             <TabsTrigger value="events" className="gap-2">

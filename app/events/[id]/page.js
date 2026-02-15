@@ -14,9 +14,9 @@ import {
   setDoc,
   updateDoc,
   deleteDoc,
-  increment,
   serverTimestamp,
   arrayUnion,
+  limit,
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import Link from 'next/link';
@@ -126,38 +126,29 @@ export default function EventDetailPage() {
     try {
       const participantDocId = `${id}_${user.uid}`;
       const participantRef = doc(db, 'eventParticipants', participantDocId);
-      const participantDoc = await getDoc(participantRef);
-
-      if (participantDoc.exists()) {
-        setIsParticipant(true);
-        setMyParticipation({ id: participantDoc.id, ...participantDoc.data() });
-        toast.info('Vous participez déjà à cet événement');
-        setJoining(false);
-        return;
-      }
 
       // Add as participant
-      await setDoc(participantRef, {
-        eventId: id,
-        userId: user.uid,
-        userName: userProfile?.displayName || user.displayName,
-        userPhoto: userProfile?.photoURL || user.photoURL,
-        userCompany: userProfile?.company || '',
-        userJobTitle: userProfile?.jobTitle || '',
-        joinedAt: serverTimestamp(),
-        role: 'participant',
-      });
-
-      // Update participants count
-      await updateDoc(doc(db, 'events', id), {
-        participantsCount: increment(1),
-      });
+      await setDoc(
+        participantRef,
+        {
+          eventId: id,
+          userId: user.uid,
+          userName: userProfile?.displayName || user.displayName,
+          userPhoto: userProfile?.photoURL || user.photoURL,
+          userCompany: userProfile?.company || '',
+          userJobTitle: userProfile?.jobTitle || '',
+          joinedAt: serverTimestamp(),
+          role: 'participant',
+        },
+        { merge: true }
+      );
 
       // Add user to event chat
       const chatQuery = query(
         collection(db, 'chats'),
         where('eventId', '==', id),
-        where('type', '==', 'event')
+        where('type', '==', 'event'),
+        limit(1)
       );
       const chatSnapshot = await getDocs(chatQuery);
 
@@ -210,11 +201,6 @@ export default function EventDetailPage() {
 
       // Remove participant
       await deleteDoc(doc(db, 'eventParticipants', participantDocId));
-
-      // Update participants count
-      await updateDoc(doc(db, 'events', id), {
-        participantsCount: increment(-1),
-      });
 
       toast.success('Vous avez quitté l\'événement');
       fetchEventData();
