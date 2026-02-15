@@ -19,6 +19,7 @@ import {
   limit,
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { logJoinError } from '@/lib/debug';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -180,7 +181,18 @@ export default function EventDetailPage() {
       toast.success('Vous avez rejoint l\'événement !');
       fetchEventData();
     } catch (error) {
-      console.error('Error joining event:', error);
+      const participantDocId = `${id}_${user?.uid}`;
+
+      logJoinError(error, {
+        action: 'joinEvent',
+        eventId: id,
+        userId: user?.uid || null,
+        firestorePath: {
+          participantDoc: `eventParticipants/${participantDocId}`,
+          eventChatQuery: `chats?eventId=${id}&type=event`,
+        },
+        timestamp: new Date().toISOString(),
+      });
       toast.error('Erreur lors de l\'inscription');
     }
     setJoining(false);
