@@ -19,7 +19,6 @@ import {
   limit,
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { logJoinError } from '@/lib/debug';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -170,7 +169,23 @@ export default function EventDetailPage() {
           });
         }
       } catch (chatError) {
-        console.error('Error updating event chat membership:', chatError);
+        const { code, message, stack } = chatError || {};
+        console.error('[JOIN_EVENT_FAIL]', {
+          code,
+          message,
+          ctx: {
+            op: 'joinEventChatMembershipUpdate',
+            eventId: id,
+            userId: user?.uid || null,
+            organizerId: event?.organizerId || null,
+            isAuthed: !!user,
+            eventTitle: event?.title || null,
+            chatQueryEmpty: chatSnapshot.empty,
+            existingChatId: chatSnapshot.empty ? null : chatSnapshot.docs[0].id,
+            when: new Date().toISOString(),
+          },
+          stack,
+        });
         if (chatError?.code === 'permission-denied') {
           toast.error("Inscription réussie, mais l'accès au chat n'a pas pu être activé immédiatement.");
         } else {
@@ -181,17 +196,20 @@ export default function EventDetailPage() {
       toast.success('Vous avez rejoint l\'événement !');
       fetchEventData();
     } catch (error) {
-      const participantDocId = `${id}_${user?.uid}`;
-
-      logJoinError(error, {
-        action: 'joinEvent',
-        eventId: id,
-        userId: user?.uid || null,
-        firestorePath: {
-          participantDoc: `eventParticipants/${participantDocId}`,
-          eventChatQuery: `chats?eventId=${id}&type=event`,
+      const { code, message, stack } = error || {};
+      console.error('[JOIN_EVENT_FAIL]', {
+        code,
+        message,
+        ctx: {
+          op: 'joinEvent',
+          eventId: id,
+          userId: user?.uid || null,
+          isAuthed: !!user,
+          participantsCount: participants.length,
+          maxParticipants: event?.maxParticipants || null,
+          when: new Date().toISOString(),
         },
-        timestamp: new Date().toISOString(),
+        stack,
       });
       toast.error('Erreur lors de l\'inscription');
     }
