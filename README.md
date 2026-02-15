@@ -82,12 +82,12 @@ events/
     - organizerId: string
     - organizerName: string
     - organizerPhoto: string
-    - participantsCount: number
+    - participantsCount: number (optionnel/legacy, privilégier un count via `eventParticipants`)
     - createdAt: timestamp
     - updatedAt: timestamp
 
 eventParticipants/
-  {participantId}/
+  {participantId}/ (`${eventId}_${userId}`)
     - eventId: string
     - userId: string
     - userName: string
@@ -168,53 +168,68 @@ NEXT_PUBLIC_FIREBASE_APP_ID=your_app_id
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Helper functions
     function isAuthenticated() {
       return request.auth != null;
     }
-    
+
     function isOwner(userId) {
       return request.auth.uid == userId;
     }
-    
+
     function isMember(members) {
       return request.auth.uid in members;
     }
-    
-    // Users
+
+    function isParticipantDocOwner() {
+      return request.resource.data.userId == request.auth.uid
+        && participantId == request.resource.data.eventId + '_' + request.auth.uid;
+    }
+
+    function isMemberMessageUpdate() {
+      return request.resource.data.diff(resource.data).changedKeys()
+        .hasOnly(['lastMessage', 'lastMessageSender', 'lastMessageAt']);
+    }
+
+    function isSelfJoinMembersUpdate() {
+      return request.resource.data.diff(resource.data).changedKeys().hasOnly(['members'])
+        && request.resource.data.members is list
+        && request.resource.data.members.hasAll(resource.data.members)
+        && request.resource.data.members.hasAll([request.auth.uid])
+        && request.resource.data.members.size() == resource.data.members.size() + 1;
+    }
+
     match /users/{userId} {
-      allow read: if true;  // Profils publics
+      allow read: if true;
       allow create: if isAuthenticated() && isOwner(userId);
       allow update: if isAuthenticated() && isOwner(userId);
       allow delete: if false;
     }
-    
-    // Events
+
     match /events/{eventId} {
-      allow read: if resource.data.visibility == 'public' || 
+      allow read: if resource.data.visibility == 'public' ||
                     (isAuthenticated() && isOwner(resource.data.organizerId));
       allow create: if isAuthenticated();
       allow update: if isAuthenticated() && isOwner(resource.data.organizerId);
       allow delete: if isAuthenticated() && isOwner(resource.data.organizerId);
     }
-    
-    // Event Participants
+
     match /eventParticipants/{participantId} {
       allow read: if isAuthenticated();
-      allow create: if isAuthenticated();
+      allow create: if isAuthenticated() && isParticipantDocOwner();
       allow update: if isAuthenticated() && isOwner(resource.data.userId);
       allow delete: if isAuthenticated() && isOwner(resource.data.userId);
     }
-    
-    // Chats
+
     match /chats/{chatId} {
       allow read: if isAuthenticated() && isMember(resource.data.members);
       allow create: if isAuthenticated();
-      allow update: if isAuthenticated() && isMember(resource.data.members);
+      allow update: if isAuthenticated() && (
+        (isMember(resource.data.members) && isMemberMessageUpdate())
+        || isSelfJoinMembersUpdate()
+      );
       allow delete: if false;
     }
-    
-    // Messages
+
     match /messages/{messageId} {
       allow read: if isAuthenticated();
       allow create: if isAuthenticated();
