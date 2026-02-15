@@ -36,6 +36,7 @@ export default function EventChatPage() {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [chatUnavailableMessage, setChatUnavailableMessage] = useState('');
+  const [participantsCount, setParticipantsCount] = useState(0);
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
 
@@ -56,6 +57,7 @@ export default function EventChatPage() {
 
     let unsubscribeChat = () => {};
     let unsubscribeMessages = () => {};
+    let unsubscribeParticipants = () => {};
 
     const setupChatListeners = async () => {
       try {
@@ -98,6 +100,22 @@ export default function EventChatPage() {
 
         const chatId = chatResult.docs[0].id;
 
+        const participantsQuery = query(
+          collection(db, 'eventParticipants'),
+          where('eventId', '==', id)
+        );
+
+        unsubscribeParticipants = onSnapshot(
+          participantsQuery,
+          (participantsSnapshot) => {
+            setParticipantsCount(participantsSnapshot.size);
+          },
+          (error) => {
+            logFirestoreError('Error subscribing to participants:', error);
+            setParticipantsCount(0);
+          }
+        );
+
         unsubscribeChat = onSnapshot(
           doc(db, 'chats', chatId),
           (chatSnapshot) => {
@@ -131,6 +149,10 @@ export default function EventChatPage() {
                     setMessages([]);
                     setChat(null);
                     toast.error('Accès refusé au chat');
+                  } else if (error?.code === 'failed-precondition') {
+                    setChatUnavailableMessage('Configuration Firestore incomplète (index requis).');
+                    setMessages([]);
+                    toast.error('Index Firestore requis pour charger les messages');
                   } else {
                     logFirestoreError('Error subscribing to messages:', error);
                     toast.error('Erreur lors du chargement des messages');
@@ -170,6 +192,7 @@ export default function EventChatPage() {
     return () => {
       unsubscribeMessages();
       unsubscribeChat();
+      unsubscribeParticipants();
     };
   }, [id, user, authLoading, router]);
 
@@ -209,8 +232,14 @@ export default function EventChatPage() {
 
       inputRef.current?.focus();
     } catch (error) {
-      console.error('Error sending message:', error);
-      toast.error('Erreur lors de l\'envoi');
+      logFirestoreError('Error sending message:', error);
+      if (error?.code === 'permission-denied') {
+        toast.error('Vous n\'avez pas accès à ce chat');
+      } else if (error?.code === 'failed-precondition') {
+        toast.error('Configuration Firestore incomplète pour envoyer ce message');
+      } else {
+        toast.error('Erreur lors de l\'envoi');
+      }
       setNewMessage(messageText);
     }
     setSending(false);
@@ -273,7 +302,7 @@ export default function EventChatPage() {
             <h1 className="font-semibold truncate">{event?.title}</h1>
             <p className="text-xs text-muted-foreground flex items-center gap-1">
               <Users className="w-3 h-3" />
-              {chat?.members?.length || 0} participants
+              {participantsCount} participants
             </p>
           </div>
           <Link href={`/events/${id}`}>
