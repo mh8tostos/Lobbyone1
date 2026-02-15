@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { collection, addDoc, doc, setDoc, serverTimestamp, Timestamp, query, where, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { normalizeHotelName } from '@/lib/hotel-search';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -39,6 +40,7 @@ const THEMATIQUES = [
 ];
 
 export default function NewEventPage() {
+  const isDev = process.env.NODE_ENV !== 'production';
   const router = useRouter();
   const { user, userProfile, loading: authLoading } = useAuth();
   const [loading, setLoading] = useState(false);
@@ -168,6 +170,7 @@ export default function NewEventPage() {
         title: title.trim(),
         description: description.trim(),
         hotelName: hotelName.trim(),
+        hotelNameLower: normalizeHotelName(hotelName),
         hotelAddress: hotelAddress.trim(),
         hotelCity: hotelCity.trim(),
         hotelPlaceId: hotelPlaceId || null,
@@ -212,7 +215,9 @@ export default function NewEventPage() {
       toast.success('Événement créé avec succès !');
       router.push(`/events/${eventRef.id}`);
     } catch (error) {
-      console.error('Error creating event:', error);
+      if (isDev) {
+        console.error('Error creating event:', error);
+      }
       toast.error("Erreur lors de la création de l'événement");
     }
     setLoading(false);

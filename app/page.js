@@ -47,6 +47,7 @@ export default function HomePage() {
   const [events, setEvents] = useState([]);
   const [searchCity, setSearchCity] = useState('');
   const [searchHotel, setSearchHotel] = useState('');
+  const [searchError, setSearchError] = useState('');
   const [selectedHotel, setSelectedHotel] = useState(null);
   const [selectedTheme, setSelectedTheme] = useState(null);
   const [loadingEvents, setLoadingEvents] = useState(true);
@@ -55,7 +56,7 @@ export default function HomePage() {
 
   useEffect(() => {
     fetchEvents();
-  }, [activeTab, selectedTheme, selectedHotel]);
+  }, [activeTab, selectedTheme]);
 
   const fetchEvents = async () => {
     setLoadingEvents(true);
@@ -114,6 +115,19 @@ export default function HomePage() {
       setEventsError("Impossible de charger les événements pour le moment. Réessayez dans quelques instants.");
     }
     setLoadingEvents(false);
+  };
+
+  const handleLandingSearch = (e) => {
+    e.preventDefault();
+
+    const query = searchHotel.trim();
+    if (!query) {
+      setSearchError("Veuillez saisir un hôtel avant de lancer la recherche.");
+      return;
+    }
+
+    setSearchError('');
+    router.push(`/events?hotel=${encodeURIComponent(query)}`);
   };
 
   const formatDate = (timestamp) => {
@@ -207,12 +221,15 @@ export default function HomePage() {
           </p>
 
           {/* Search Bar */}
-          <div className="flex flex-col sm:flex-row gap-3 max-w-xl mx-auto">
+          <form onSubmit={handleLandingSearch} className="flex flex-col sm:flex-row gap-3 max-w-xl mx-auto">
             <div className="flex-1">
               <HotelAutocomplete
                 value={searchHotel}
                 onChange={(value) => {
                   setSearchHotel(value);
+                  if (searchError) {
+                    setSearchError('');
+                  }
                   if (!value) {
                     setSelectedHotel(null);
                   }
@@ -222,17 +239,19 @@ export default function HomePage() {
                   if (hotel) {
                     setSearchHotel(hotel.name);
                     setSearchCity(hotel.city);
+                    setSearchError('');
                   }
                 }}
                 placeholder="Rechercher un hôtel..."
                 inputClassName="h-12"
               />
             </div>
-            <Button onClick={fetchEvents} className="h-12 px-6 gap-2">
+            <Button type="submit" className="h-12 px-6 gap-2">
               <Search className="w-4 h-4" />
               Rechercher
             </Button>
-          </div>
+          </form>
+          {searchError && <p className="text-sm text-destructive mt-2">{searchError}</p>}
           {selectedHotel && (
             <p className="text-sm text-muted-foreground mt-2">
               <MapPin className="w-4 h-4 inline mr-1" />
@@ -261,18 +280,20 @@ export default function HomePage() {
             </CardContent>
           </Card>
 
-          <Card className="flex-1 cursor-pointer hover:shadow-lg transition-shadow border-2 hover:border-purple-500/50">
-            <CardContent className="p-6 flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-purple-100 flex items-center justify-center">
-                <Search className="w-6 h-6 text-purple-600" />
-              </div>
-              <div>
-                <h3 className="font-semibold">Trouver un event</h3>
-                <p className="text-sm text-muted-foreground">Dans votre hôtel</p>
-              </div>
-              <ChevronRight className="w-5 h-5 ml-auto text-muted-foreground" />
-            </CardContent>
-          </Card>
+          <Link href="/events" className="flex-1">
+            <Card className="h-full cursor-pointer hover:shadow-lg transition-shadow border-2 hover:border-purple-500/50">
+              <CardContent className="p-6 flex items-center gap-4">
+                <div className="w-12 h-12 rounded-xl bg-purple-100 flex items-center justify-center">
+                  <Search className="w-6 h-6 text-purple-600" />
+                </div>
+                <div>
+                  <h3 className="font-semibold">Trouver un event</h3>
+                  <p className="text-sm text-muted-foreground">Dans votre hôtel</p>
+                </div>
+                <ChevronRight className="w-5 h-5 ml-auto text-muted-foreground" />
+              </CardContent>
+            </Card>
+          </Link>
         </div>
       </section>
 
